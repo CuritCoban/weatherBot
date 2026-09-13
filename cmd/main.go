@@ -65,17 +65,17 @@ func main() {
 		}
 
 		//Если команда не найдена
-		tgbot.EndBot(update)
+		//tgbot.EndBot(update)
 	}
 }
 
-/*if coord.Lat == 0 && coord.Lon == 0 {
-		bot.Send(botapi.NewMessage(chatID,
-			fmt.Sprintf("Города '%s' не существует", msgText)))
-		continue
-	}
+/*buttonComandSelect := "/selectCity "
+buttonSelect := botapi.InlineKeyboardButton{
+	Text:                         "Город",
+	SwitchInlineQueryCurrentChat: &buttonComandSelect,
 }
-temp := owApi.GetTemperature(coord)
-tempStr := fmt.Sprintf("%0.1f", temp)
-bot.Send(botapi.NewMessage(chatID,
-	fmt.Sprintf("Температура в %s: %s°C", msgText, tempStr)))*/
+buttonComandWeather := "/weather"
+buttonWeather := botapi.InlineKeyboardButton{
+	Text:                         "Погода",
+	SwitchInlineQueryCurrentChat: &buttonComandWeather,
+}*/
