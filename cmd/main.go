@@ -31,6 +31,7 @@ func main() {
 
 	owApi := weather.ApiKey{Key: WEATHER_KEY}
 	tgbot := handler.TgBot{Bot: bot}
+	db := handler.DataBase{Postgres: handler.InitDB()}
 
 	for update := range ch {
 		if update.Message == nil {
