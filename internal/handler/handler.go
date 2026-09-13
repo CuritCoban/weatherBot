@@ -1,18 +1,17 @@
 package handler
 
 import (
+	"fmt"
 	"log"
+	"weatherBot/internal/models"
+	repo "weatherBot/internal/repository"
+	weather "weatherBot/internal/usecases"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 type TgBot struct {
 	Bot *botapi.BotAPI
-}
-type DataBase struct {
-	Postgres *gorm.DB
 }
 
 func (b *TgBot) StartBot(update botapi.Update) {
@@ -20,20 +19,69 @@ func (b *TgBot) StartBot(update botapi.Update) {
 		b.Bot.Send(botapi.NewMessage(
 			update.Message.Chat.ID, "Hi"))
 	}
+
 }
 
-func (b *TgBot) SelectCity(update botapi.Update) {
-	if update.Message.Text == "/selectCity" {
-
+func (b *TgBot) SelectCity(update botapi.Update, db repo.DataBase, cityName string, owApi weather.ApiKey) {
+	coord := owApi.GetCoordinate(cityName)
+	if coord.Lat == 0 && coord.Lon == 0 {
+		b.Bot.Send(botapi.NewMessage(update.Message.Chat.ID,
+			fmt.Sprintf("Города '%s' не существует", cityName)))
+		return
 	}
+
+	city := models.WeatherDB{
+		ChatID:    update.Message.Chat.ID,
+		City:      cityName,
+		Temp:      0.00,
+		Lon:       coord.Lon,
+		Lat:       coord.Lat,
+		CreatedAt: update.Message.Time(),
+	}
+
+	result := db.Postgres.Table("weather").Create(&city)
+	if result.Error != nil {
+		b.Bot.Send(botapi.NewMessage(
+			update.Message.Chat.ID, "Город не выбран: "+cityName))
+		log.Println("Error creating city: ", result.Error)
+		return
+	}
+
+	b.Bot.Send(botapi.NewMessage(
+		update.Message.Chat.ID, "Выбран город: "+cityName))
+	log.Println("City created success: ", city)
 }
 
-func InitDB() *gorm.DB {
-	dsn := "host=localhost user=postgres password=3429 dbname=postgres port=9920 sslmode=disable TimeZone=Asia/Shanghai"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect database")
+func (b *TgBot) GetWeather(update botapi.Update, db repo.DataBase, owApi weather.ApiKey) {
+	weather := models.WeatherDB{}
+	result := db.Postgres.Table("weather").Where("chat_id = ?",
+		update.Message.Chat.ID).First(&weather)
+	if result.Error != nil {
+		log.Println("Error writing to 'weather': ", result.Error)
+		return
 	}
-	log.Println("DataBase init")
-	return db
+
+	switch weather.Temp {
+
+	case 0.00:
+		weather.Temp = owApi.GetTemperature(
+			models.Coordinate{Lon: weather.Lon, Lat: weather.Lat})
+
+		result = db.Postgres.Table("weather").Where("chat_id = ?",
+			update.Message.Chat.ID).Update("temp", weather.Temp)
+		if result.Error != nil {
+			log.Println("Error update database: ", result.Error)
+			return
+		}
+		b.Bot.Send(botapi.NewMessage(
+			update.Message.Chat.ID, fmt.Sprintf("Температура в городе %s: %.0f°C",
+				weather.City, weather.Temp)))
+		return
+
+	default:
+		b.Bot.Send(botapi.NewMessage(
+			update.Message.Chat.ID, fmt.Sprintf("Температура в городе %s: %.0f°C",
+				weather.City, weather.Temp)))
+		return
+	}
 }

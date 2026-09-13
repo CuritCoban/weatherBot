@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type CoordinateSlice []struct {
 	Lon float64 `json:"lon"`
 	Lat float64 `json:"lat"`
@@ -17,7 +19,10 @@ type Weather struct {
 }
 
 type WeatherDB struct {
-	ID   int
-	City string
-	Temp string
+	ChatID    int64     `gorm:"chat_id"`
+	City      string    `gorm:"city"`
+	Temp      float64   `gorm:"temp"`
+	Lon       float64   `json:"lon"`
+	Lat       float64   `json:"lat"`
+	CreatedAt time.Time `gorm:"created_at"`
 }

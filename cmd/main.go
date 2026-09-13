@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"log"
-	"weatherBot/internal/config"
+	"strings"
+	"weatherBot/config"
 	"weatherBot/internal/handler"
+	repo "weatherBot/internal/repository"
 	weather "weatherBot/internal/usecases"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -16,7 +18,7 @@ func main() {
 		log.Println("Fatal error")
 	}()
 
-	TOKEN, WEATHER_KEY := config.InitConfig()
+	TOKEN, WEATHER_KEY, GORM_KEY := config.InitConfig()
 
 	//Создание бота
 	bot, err := botapi.NewBotAPI(TOKEN)
@@ -30,33 +32,47 @@ func main() {
 	ch := bot.GetUpdatesChan(updateConfig)
 
 	owApi := weather.ApiKey{Key: WEATHER_KEY}
+	owApi.GetCoordinate("Moscow")
+
 	tgbot := handler.TgBot{Bot: bot}
-	db := handler.DataBase{Postgres: handler.InitDB()}
-	fmt.Println(db)
+	db := repo.DataBase{Postgres: config.InitDB(GORM_KEY)}
 
 	for update := range ch {
 		if update.Message == nil {
 			continue
 		}
-		chatID := update.Message.Chat.ID
+		//chatID := update.Message.Chat.ID
 		msgText := update.Message.Text
 		fmt.Printf("\nUser enter: %s", msgText)
 
-		//Обработка первого запуска; Отправка
-		tgbot.StartBot(update)
-
-		coord := owApi.GetCoordinate(msgText)
-		//Обработка неверного ввода; Отправка
-		if coord.Lat == 0 && coord.Lon == 0 {
-			bot.Send(botapi.NewMessage(chatID,
-				fmt.Sprintf("Города '%s' не существует", msgText)))
+		//Первый запуск
+		if update.Message.Text == "/start" {
+			tgbot.StartBot(update)
 			continue
 		}
 
-		//Получение температуры и округление до .0; Отправка
-		temp := owApi.GetTemperature(coord)
-		tempStr := fmt.Sprintf("%0.1f", temp)
-		bot.Send(botapi.NewMessage(chatID,
-			fmt.Sprintf("Температура в %s: %s°C", msgText, tempStr)))
+		//Выбор города
+		cityName := strings.Split(msgText, " ")
+		if cityName[0] == "/selectCity" && len(cityName) > 1 {
+			tgbot.SelectCity(update, db, cityName[1], owApi)
+			continue
+		}
+
+		//Получение погоды в выбранном городе
+		if msgText == "/weather" {
+			tgbot.GetWeather(update, db, owApi)
+			continue
+		}
 	}
 }
+
+/*if coord.Lat == 0 && coord.Lon == 0 {
+		bot.Send(botapi.NewMessage(chatID,
+			fmt.Sprintf("Города '%s' не существует", msgText)))
+		continue
+	}
+}
+temp := owApi.GetTemperature(coord)
+tempStr := fmt.Sprintf("%0.1f", temp)
+bot.Send(botapi.NewMessage(chatID,
+	fmt.Sprintf("Температура в %s: %s°C", msgText, tempStr)))*/

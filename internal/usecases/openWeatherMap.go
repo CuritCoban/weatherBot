@@ -16,13 +16,13 @@ func (k ApiKey) GetCoordinate(city string) models.Coordinate {
 	url := "http://api.openweathermap.org/geo/1.0/direct?q=" + city + "&limit=5&appid=" + k.Key
 	resp, err := http.Get(url)
 	if err != nil || resp.StatusCode != http.StatusOK {
-		log.Printf("Parse coordinate error: %v", err)
+		log.Println("Parse coordinate error: ", err)
 		return models.Coordinate{}
 	}
 	coordinate := models.CoordinateSlice{}
 	err = json.NewDecoder(resp.Body).Decode(&coordinate)
 	if err != nil {
-		log.Printf("Decode coordinate error: %v", err)
+		log.Println("Decode coordinate error: ", err)
 	}
 	if len(coordinate) == 0 {
 		log.Println("coordinate is empty")
@@ -41,14 +41,14 @@ func (k ApiKey) GetTemperature(c models.Coordinate) float64 {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Printf("Parse temp error: %v", err)
+		log.Println("Parse temp error: ", err)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&w)
 	if err != nil {
-		log.Printf("Decode temp error: %v", err)
+		log.Println("Decode temp error: ", err)
 	}
 
-	fmt.Printf("\nWeather in city: %f", w.Main.Temp)
+	fmt.Println("Weather in city: ", w.Main.Temp)
 	return w.Main.Temp
 }
