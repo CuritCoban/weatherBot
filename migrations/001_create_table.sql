@@ -1,4 +1,4 @@
--- goose+ Up
+-- +goose Up
 
 CREATE TABLE IF NOT EXISTS weather(
     chat_id int NOT NULL,
@@ -8,5 +8,5 @@ CREATE TABLE IF NOT EXISTS weather(
 	lat float NOT NULL,
     created_at timestamp NOT NULL
 );
--- goose+ Down
+-- +goose Down
 DROP TABLE IF EXISTS weather;

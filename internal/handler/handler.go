@@ -39,12 +39,18 @@ func (b *TgBot) SelectCity(update botapi.Update, db repo.DataBase, cityName stri
 		CreatedAt: update.Message.Time(),
 	}
 
-	result := db.Postgres.Table("weather").Create(&city)
+	result := db.Postgres.Table("weather").Where("chat_id = ?, city = ?",
+		update.Message.Chat.ID, cityName).First(&city)
 	if result.Error != nil {
-		b.Bot.Send(botapi.NewMessage(
-			update.Message.Chat.ID, "Город не выбран: "+cityName))
-		log.Println("Error creating city: ", result.Error)
-		return
+		log.Println("Error creating table: ", result.Error)
+
+		result = db.Postgres.Table("weather").Create(&city)
+		if result.Error != nil {
+			b.Bot.Send(botapi.NewMessage(
+				update.Message.Chat.ID, "Город не выбран: "+cityName))
+			log.Println("Error creating table: ", result.Error)
+			return
+		}
 	}
 
 	b.Bot.Send(botapi.NewMessage(
