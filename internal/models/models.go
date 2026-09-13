@@ -15,3 +15,9 @@ type Weather struct {
 		Temp float64 `json:"temp"`
 	} `json:"main"`
 }
+
+type WeatherDB struct {
+	ID   int
+	City string
+	Temp string
+}

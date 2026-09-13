@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"weatherBot/internal/config"
+	"weatherBot/internal/handler"
 	weather "weatherBot/internal/usecases"
 
 	botapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -29,6 +30,7 @@ func main() {
 	ch := bot.GetUpdatesChan(updateConfig)
 
 	owApi := weather.ApiKey{Key: WEATHER_KEY}
+	tgbot := handler.TgBot{Bot: bot}
 
 	for update := range ch {
 		if update.Message == nil {
@@ -39,10 +41,7 @@ func main() {
 		fmt.Printf("\nUser enter: %s", msgText)
 
 		//Обработка первого запуска; Отправка
-		if update.Message.Text == "/start" {
-			bot.Send(botapi.NewMessage(chatID,
-				"Hi"))
-		}
+		tgbot.StartBot(update)
 
 		coord := owApi.GetCoordinate(msgText)
 		//Обработка неверного ввода; Отправка
