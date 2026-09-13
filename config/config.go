@@ -21,7 +21,7 @@ func InitConfig() (string, string, string) {
 	if TOKEN == "" || WEATHER_KEY == "" || GORM_KEY == "" {
 		log.Panic(".env variables are empty")
 	}
-
+	log.Println("Config init")
 	return TOKEN, WEATHER_KEY, GORM_KEY
 }
 

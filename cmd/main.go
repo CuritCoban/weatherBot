@@ -63,6 +63,9 @@ func main() {
 			tgbot.GetWeather(update, db, owApi)
 			continue
 		}
+
+		//Если команда не найдена
+		tgbot.EndBot(update)
 	}
 }
 

@@ -21,6 +21,10 @@ func (b *TgBot) StartBot(update botapi.Update) {
 	}
 
 }
+func (b *TgBot) EndBot(update botapi.Update) {
+	b.Bot.Send(botapi.NewMessage(update.Message.Chat.ID, "Такой команды нет"))
+	log.Println("Команда '" + update.Message.Text + "' не найдена")
+}
 
 func (b *TgBot) SelectCity(update botapi.Update, db repo.DataBase, cityName string, owApi weather.ApiKey) {
 	coord := owApi.GetCoordinate(cityName)
@@ -39,10 +43,10 @@ func (b *TgBot) SelectCity(update botapi.Update, db repo.DataBase, cityName stri
 		CreatedAt: update.Message.Time(),
 	}
 
-	result := db.Postgres.Table("weather").Where("chat_id = ?, city = ?",
+	result := db.Postgres.Table("weather").Where("chat_id = ? AND city = ?",
 		update.Message.Chat.ID, cityName).First(&city)
 	if result.Error != nil {
-		log.Println("Error creating table: ", result.Error)
+		log.Println("Error table not found: ", result.Error)
 
 		result = db.Postgres.Table("weather").Create(&city)
 		if result.Error != nil {
@@ -55,7 +59,7 @@ func (b *TgBot) SelectCity(update botapi.Update, db repo.DataBase, cityName stri
 
 	b.Bot.Send(botapi.NewMessage(
 		update.Message.Chat.ID, "Выбран город: "+cityName))
-	log.Println("City created success: ", city)
+	log.Println("Table created or found success: ", city)
 }
 
 func (b *TgBot) GetWeather(update botapi.Update, db repo.DataBase, owApi weather.ApiKey) {
@@ -76,18 +80,20 @@ func (b *TgBot) GetWeather(update botapi.Update, db repo.DataBase, owApi weather
 		result = db.Postgres.Table("weather").Where("chat_id = ?",
 			update.Message.Chat.ID).Update("temp", weather.Temp)
 		if result.Error != nil {
-			log.Println("Error update database: ", result.Error)
+			log.Println("Error update table: ", result.Error)
 			return
 		}
 		b.Bot.Send(botapi.NewMessage(
 			update.Message.Chat.ID, fmt.Sprintf("Температура в городе %s: %.0f°C",
 				weather.City, weather.Temp)))
+		log.Println("Температура в городe: ", weather.Temp)
 		return
 
 	default:
 		b.Bot.Send(botapi.NewMessage(
 			update.Message.Chat.ID, fmt.Sprintf("Температура в городе %s: %.0f°C",
 				weather.City, weather.Temp)))
+		log.Println("Температура в городe: ", weather.Temp)
 		return
 	}
 }
