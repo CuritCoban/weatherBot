@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"strings"
+	"log/slog"
 	"weatherBot/config"
 	"weatherBot/internal/handler"
 	repo "weatherBot/internal/repository"
@@ -15,9 +14,9 @@ import (
 func main() {
 	defer func() {
 		recover()
-		log.Println("Fatal error")
+		slog.Error("Fatal error")
 	}()
-
+	//Загрузка переменных окружения
 	TOKEN, WEATHER_KEY, GORM_KEY := config.InitConfig()
 
 	//Создание бота
@@ -32,50 +31,55 @@ func main() {
 	ch := bot.GetUpdatesChan(updateConfig)
 
 	owApi := weather.ApiKey{Key: WEATHER_KEY}
-	owApi.GetCoordinate("Moscow")
-
 	tgbot := handler.TgBot{Bot: bot}
 	db := repo.DataBase{Postgres: config.InitDB(GORM_KEY)}
 
+	//Переменная ожидания
+	wait := make(map[int64]bool)
+
+	//Создание кнопок
+	button := botapi.NewReplyKeyboard(
+		botapi.NewKeyboardButtonRow(
+			botapi.NewKeyboardButton("Город"),
+			botapi.NewKeyboardButton("Погода"),
+		),
+	)
+
+	//Цикл обработки сообщений
 	for update := range ch {
+		chatID := update.Message.Chat.ID
+		msgText := update.Message.Text
 		if update.Message == nil {
 			continue
 		}
-		//chatID := update.Message.Chat.ID
-		msgText := update.Message.Text
-		fmt.Printf("\nUser enter: %s", msgText)
 
-		//Первый запуск
-		if update.Message.Text == "/start" {
-			tgbot.StartBot(update)
-			continue
-		}
+		switch {
+		//Первый запуск /start
+		case msgText == "/start":
+			msg := botapi.NewMessage(chatID,
+				"Команда 'Город' чтобы выбрать город где нужно узнать погоду.\n"+
+					"Команда 'Погода' чтобы показать погоду в выбранном городе")
+			bot.Send(msg)
 
 		//Выбор города
-		cityName := strings.Split(msgText, " ")
-		if cityName[0] == "/selectCity" && len(cityName) > 1 {
-			tgbot.SelectCity(update, db, cityName[1], owApi)
-			continue
-		}
+		case msgText == "Город" || wait[chatID] == true:
+			if wait[chatID] == true {
+				tgbot.SelectCity(update, db, msgText, owApi)
+				wait[chatID] = false
+				break
+			}
+			wait[chatID] = true
+			bot.Send(botapi.NewMessage(chatID, "Введи город"))
 
-		//Получение погоды в выбранном городе
-		if msgText == "/weather" {
+		//Отправка погоды в выбранном городе
+		case msgText == "Погода":
 			tgbot.GetWeather(update, db, owApi)
-			continue
-		}
 
-		//Если команда не найдена
-		//tgbot.EndBot(update)
+		//Появление кнопок
+		default:
+			msg := botapi.NewMessage(chatID, "Выбери действие")
+			msg.ReplyMarkup = button
+			bot.Send(msg)
+		}
 	}
 }
-
-/*buttonComandSelect := "/selectCity "
-buttonSelect := botapi.InlineKeyboardButton{
-	Text:                         "Город",
-	SwitchInlineQueryCurrentChat: &buttonComandSelect,
-}
-buttonComandWeather := "/weather"
-buttonWeather := botapi.InlineKeyboardButton{
-	Text:                         "Погода",
-	SwitchInlineQueryCurrentChat: &buttonComandWeather,
-}*/

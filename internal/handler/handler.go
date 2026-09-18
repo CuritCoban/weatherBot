@@ -2,7 +2,7 @@ package handler
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"weatherBot/internal/models"
 	repo "weatherBot/internal/repository"
 	weather "weatherBot/internal/usecases"
@@ -14,86 +14,92 @@ type TgBot struct {
 	Bot *botapi.BotAPI
 }
 
-func (b *TgBot) StartBot(update botapi.Update) {
-	if update.Message.Text == "/start" {
-		b.Bot.Send(botapi.NewMessage(
-			update.Message.Chat.ID, "Hi"))
-	}
-
-}
-func (b *TgBot) EndBot(update botapi.Update) {
-	b.Bot.Send(botapi.NewMessage(update.Message.Chat.ID, "Такой команды нет"))
-	log.Println("Команда '" + update.Message.Text + "' не найдена")
-}
-
+// Выбор города
 func (b *TgBot) SelectCity(update botapi.Update, db repo.DataBase, cityName string, owApi weather.ApiKey) {
+	//Обработки ошибки ввода
 	coord := owApi.GetCoordinate(cityName)
 	if coord.Lat == 0 && coord.Lon == 0 {
+		slog.Warn("Incorrect input", "cityName", cityName)
+
 		b.Bot.Send(botapi.NewMessage(update.Message.Chat.ID,
 			fmt.Sprintf("Города '%s' не существует", cityName)))
 		return
 	}
 
+	//Заполнение структуры нужными данными
 	city := models.WeatherDB{
-		ChatID:    update.Message.Chat.ID,
-		City:      cityName,
-		Temp:      0.00,
-		Lon:       coord.Lon,
-		Lat:       coord.Lat,
-		CreatedAt: update.Message.Time(),
+		ChatID: update.Message.Chat.ID,
+		City:   cityName,
+		Temp:   0.00,
+		Lon:    coord.Lon,
+		Lat:    coord.Lat,
 	}
 
-	result := db.Postgres.Table("weather").Where("chat_id = ? AND city = ?",
-		update.Message.Chat.ID, cityName).First(&city)
-	if result.Error != nil {
-		log.Println("Error table not found: ", result.Error)
+	//Поиск в таблице выбранного города
+	result := db.Postgres.Table("weather").Where("chat_id = ?",
+		update.Message.Chat.ID).Save(city)
 
-		result = db.Postgres.Table("weather").Create(&city)
+	//Если город не найден
+	if result.Error != nil {
+		slog.Error("Table", "Not found error", result.Error)
+
+		//Создается новая таблица
+		result = db.Postgres.Table("weather").Create(city)
+
+		//Если создание не успешно выход из функции
 		if result.Error != nil {
+			slog.Error("Table", "Create error", result.Error)
+
 			b.Bot.Send(botapi.NewMessage(
 				update.Message.Chat.ID, "Город не выбран: "+cityName))
-			log.Println("Error creating table: ", result.Error)
 			return
 		}
+		slog.Info("Table create success", "ChatID", city.ChatID, "City", city.City)
 	}
 
 	b.Bot.Send(botapi.NewMessage(
 		update.Message.Chat.ID, "Выбран город: "+cityName))
-	log.Println("Table created or found success: ", city)
+	slog.Info("Table found success", "ChatID", city.ChatID, "City", city.City)
 }
 
+// Отправка погоды
 func (b *TgBot) GetWeather(update botapi.Update, db repo.DataBase, owApi weather.ApiKey) {
 	weather := models.WeatherDB{}
 	result := db.Postgres.Table("weather").Where("chat_id = ?",
-		update.Message.Chat.ID).First(&weather)
-	if result.Error != nil {
-		log.Println("Error writing to 'weather': ", result.Error)
+		update.Message.Chat.ID).Find(&weather)
+
+	if result.Error != nil || result.RowsAffected == 0 {
+		slog.Error("Find data in DB", "Error", result.Error, "RowsAffected", result.RowsAffected)
 		return
 	}
 
 	switch weather.Temp {
 
 	case 0.00:
-		weather.Temp = owApi.GetTemperature(
-			models.Coordinate{Lon: weather.Lon, Lat: weather.Lat})
-
+		weather.Temp = owApi.GetTemperature(models.Coordinate{Lon: weather.Lon, Lat: weather.Lat})
+		if weather.Temp == -1000 {
+			slog.Error("GetTemperature error")
+			b.Bot.Send(botapi.NewMessage(update.Message.Chat.ID, "Server error"))
+			return
+		}
 		result = db.Postgres.Table("weather").Where("chat_id = ?",
 			update.Message.Chat.ID).Update("temp", weather.Temp)
 		if result.Error != nil {
-			log.Println("Error update table: ", result.Error)
+			slog.Error("Table", "Update error", result.Error)
 			return
 		}
+
+		slog.Info("Send", "Temp", weather.Temp, "City", weather.City)
 		b.Bot.Send(botapi.NewMessage(
 			update.Message.Chat.ID, fmt.Sprintf("Температура в городе %s: %.0f°C",
 				weather.City, weather.Temp)))
-		log.Println("Температура в городe: ", weather.Temp)
 		return
 
 	default:
+		slog.Info("Send", "Temp", weather.Temp, "City", weather.City)
 		b.Bot.Send(botapi.NewMessage(
 			update.Message.Chat.ID, fmt.Sprintf("Температура в городе %s: %.0f°C",
 				weather.City, weather.Temp)))
-		log.Println("Температура в городe: ", weather.Temp)
 		return
 	}
 }
