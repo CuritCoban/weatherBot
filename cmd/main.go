@@ -69,7 +69,7 @@ func main() {
 				break
 			}
 			wait[chatID] = true
-			bot.Send(botapi.NewMessage(chatID, "Введи город"))
+			bot.Send(botapi.NewMessage(chatID, "Введи город: "))
 
 		//Отправка погоды в выбранном городе
 		case msgText == "Погода":

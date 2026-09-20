@@ -1,0 +1,9 @@
+services:
+  bot-postgres:
+    image: postgres
+    container_name: bot-postgres
+    ports:
+      - "9920:5432"
+    environment:
+      - POSTGRES_PASSWORD=3429
+      - POSTGRES_DB=weatherbot

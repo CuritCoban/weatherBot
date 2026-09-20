@@ -51,7 +51,7 @@ func (b *TgBot) SelectCity(update botapi.Update, db repo.DataBase, cityName stri
 			slog.Error("Table", "Create error", result.Error)
 
 			b.Bot.Send(botapi.NewMessage(
-				update.Message.Chat.ID, "Город не выбран: "+cityName))
+				update.Message.Chat.ID, "Ошибка сервера"))
 			return
 		}
 		slog.Info("Table create success", "ChatID", city.ChatID, "City", city.City)
@@ -68,18 +68,20 @@ func (b *TgBot) GetWeather(update botapi.Update, db repo.DataBase, owApi weather
 	result := db.Postgres.Table("weather").Where("chat_id = ?",
 		update.Message.Chat.ID).Find(&weather)
 
+	//Если не удалось достать данные из БД
 	if result.Error != nil || result.RowsAffected == 0 {
+		b.Bot.Send(botapi.NewMessage(update.Message.Chat.ID, "Ошибка сервера"))
 		slog.Error("Find data in DB", "Error", result.Error, "RowsAffected", result.RowsAffected)
 		return
 	}
 
 	switch weather.Temp {
-
+	//
 	case 0.00:
 		weather.Temp = owApi.GetTemperature(models.Coordinate{Lon: weather.Lon, Lat: weather.Lat})
 		if weather.Temp == -1000 {
 			slog.Error("GetTemperature error")
-			b.Bot.Send(botapi.NewMessage(update.Message.Chat.ID, "Server error"))
+			b.Bot.Send(botapi.NewMessage(update.Message.Chat.ID, "Ошибка сервера"))
 			return
 		}
 		result = db.Postgres.Table("weather").Where("chat_id = ?",

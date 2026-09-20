@@ -10,7 +10,7 @@ import (
 )
 
 func InitConfig() (string, string, string) {
-	err := godotenv.Load()
+	err := godotenv.Load(".env")
 	if err != nil {
 		log.Panicf("Init config error: %v", err)
 	}
