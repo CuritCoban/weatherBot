@@ -75,33 +75,24 @@ func (b *TgBot) GetWeather(update botapi.Update, db repo.DataBase, owApi weather
 		return
 	}
 
-	switch weather.Temp {
-	//
-	case 0.00:
-		weather.Temp = owApi.GetTemperature(models.Coordinate{Lon: weather.Lon, Lat: weather.Lat})
-		if weather.Temp == -1000 {
-			slog.Error("GetTemperature error")
-			b.Bot.Send(botapi.NewMessage(update.Message.Chat.ID, "Ошибка сервера"))
-			return
-		}
-		result = db.Postgres.Table("weather").Where("chat_id = ?",
-			update.Message.Chat.ID).Update("temp", weather.Temp)
-		if result.Error != nil {
-			slog.Error("Table", "Update error", result.Error)
-			return
-		}
-
-		slog.Info("Send", "Temp", weather.Temp, "City", weather.City)
-		b.Bot.Send(botapi.NewMessage(
-			update.Message.Chat.ID, fmt.Sprintf("Температура в городе %s: %.0f°C",
-				weather.City, weather.Temp)))
-		return
-
-	default:
-		slog.Info("Send", "Temp", weather.Temp, "City", weather.City)
-		b.Bot.Send(botapi.NewMessage(
-			update.Message.Chat.ID, fmt.Sprintf("Температура в городе %s: %.0f°C",
-				weather.City, weather.Temp)))
+	//Полученние температуры
+	weather.Temp = owApi.GetTemperature(models.Coordinate{Lon: weather.Lon, Lat: weather.Lat})
+	if weather.Temp == -1000 {
+		slog.Error("GetTemperature error")
+		b.Bot.Send(botapi.NewMessage(update.Message.Chat.ID, "Ошибка сервера"))
 		return
 	}
+
+	//Обновление температуры
+	result = db.Postgres.Table("weather").Where("chat_id = ?",
+		update.Message.Chat.ID).Update("temp", weather.Temp)
+	if result.Error != nil {
+		slog.Error("Table", "Update error", result.Error)
+		return
+	}
+
+	slog.Info("Send", "Temp", weather.Temp, "City", weather.City)
+	b.Bot.Send(botapi.NewMessage(
+		update.Message.Chat.ID, fmt.Sprintf("Температура в городе %s: %.0f°C",
+			weather.City, weather.Temp)))
 }
