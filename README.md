@@ -1,15 +1,12 @@
 # weatherBot
----
 ## Описание 
 ### Суть работы
 1. Бот парсит координаты указанного города 
 2. Добавляеет их в БД 
 3. Достает их из БД и парсит температуру с [OpenWeatherMap](https://openweathermap.org/api)
 4. Отправляет результат пользователю
-
-### Docker
-Не работает. Что то запускается что то нет
----
+#### Docker
+Docker не работает. Что то запускается что то нет
 ## Стек
 - Go
 - PostgreSQL
@@ -19,7 +16,6 @@
 - Git
 - Goose
 - Docker 50/50
----
 ## Установка
 1. git clone https://github.com/CuritCoban/weatherBot.git
 2. cd weatherBot
