@@ -57,6 +57,5 @@ func (k ApiKey) GetTemperature(c models.Coordinate) float64 {
 		return -1000
 	}
 
-	///fmt.Println("Weather in city: ", w.Main.Temp)
 	return w.Main.Temp
 }
